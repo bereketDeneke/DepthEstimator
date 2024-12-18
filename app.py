@@ -184,6 +184,7 @@ def process_frame(frame):
     results = yolo_model(image_rgb)
     detections = results.pandas().xyxy[0]
     depth_map = estimate_depth(image_rgb)
+    depth_map = depth_map.max() - depth_map
 
     objects = []
     annotated_frame = frame.copy()
