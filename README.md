@@ -41,7 +41,6 @@ Vision Aid combines three key technologies:
 
 You upload an image. The system displays the untouched original image.
 
-<!-- ![Step 1 - Original Image](images/step1.jpeg) -->
 <img src="images/step1.jpeg" alt="Step 1 - Original Image" width="400" />
 
 
@@ -53,7 +52,7 @@ The uploaded image is passed through YOLOv5, detecting objects and returning bou
 - YOLOv5 identifies objects like `person`, `car`, `bottle`, etc.
 - Draws bounding boxes and labels on the image.
 
-![Step 2 - Object Detection](images/step2.jpeg)
+<img src="images/step2.jpeg" alt="Step 2 - Object Detection" width="400" />
 
 ### Step 3: Depth Estimation with MiDaS
 
@@ -63,12 +62,12 @@ The image is then sent to the MiDaS model to produce a depth map, where closer o
 - MiDaS estimates relative depth.
 - Depth map helps visualize which objects are nearer or farther.
 
-![Step 3 - Depth Map](images/step3.jpeg)
+<img src="images/step3.jpeg" alt="Step 3 - Depth Map" width="400" />
 
 **Combining Object Detection + Depth**:  
 We combine the bounding boxes with depth information to understand the scene spatially.
   
-![Step 3 - Combined Visualization](images/combined-image.jpeg)
+<img src="images/combined-image.jpeg" alt="Step 3 - Combined Visualization" width="400" />
 
 ### Scene Description via GPT
 
