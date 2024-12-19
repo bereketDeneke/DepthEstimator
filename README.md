@@ -41,7 +41,7 @@ Vision Aid combines three key technologies:
 
 You upload an image. The system displays the untouched original image.
 
-<img src="images/step1.jpeg" alt="Step 1 - Original Image" width="400" />
+<img src="images/step1.jpeg" alt="Step 1 - Original Image" width="500" />
 
 
 ### Step 2: Object Detection with YOLOv5
