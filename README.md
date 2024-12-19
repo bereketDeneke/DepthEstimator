@@ -1,3 +1,5 @@
+# Vision Aid
+
 **Vision Aid** is a project developed as part of an **Introduction to Machine Learning** class. Its main goal is to assist visually impaired users in understanding their surroundings. It does this by integrating object detection (using YOLOv5), depth estimation (using MiDaS), and a language model (GPT) to produce a clear, auditory-friendly description of a scene. By providing spatial cues like "to the left," "to the right," "closer," and "farther," the system helps users build a mental picture of their environment.
 
 ## Table of Contents
@@ -8,6 +10,7 @@
   - [Step 2: Object Detection with YOLOv5](#step-2-object-detection-with-yolov5)
   - [Step 3: Depth Estimation with MiDaS](#step-3-depth-estimation-with-midas)
   - [Scene Description via GPT](#scene-description-via-gpt)
+- [Early Explorations with Depth Estimation](#early-explorations-with-depth-estimation)
 - [Dependencies and Installation](#dependencies-and-installation)
 - [Running the Application](#running-the-application)
 - [The Prompt Explained](#the-prompt-explained)
@@ -74,6 +77,12 @@ We combine the bounding boxes with depth information to understand the scene spa
 All object positions and relative depths are summarized and sent to GPT. GPT returns a concise, spatially-aware narrative. For example:
 
 > "A car appears to the left, while a person stands closer to the right. A sign is visible farther behind."
+
+## Early Explorations with Depth Estimation
+
+Before integrating everything into the main pipeline, we explored depth estimation and visualization in a standalone Jupyter notebook: [`depth.ipynb`](depth.ipynb). In this notebook, we used **OpenCV (cv2)** alongside the **MiDaS** model to preprocess images, generate depth maps, and visualize results. This provided a straightforward environment to experiment with different approaches and fine-tune the depth estimation process before adding it to the main application.
+
+You can open `depth.ipynb` in [Jupyter Notebook](https://jupyter.org/) or [JupyterLab](https://jupyter.org/install) to see how images are read with OpenCV, fed into MiDaS, and then processed to produce intuitive depth visualizations.
 
 ## Dependencies and Installation
 
