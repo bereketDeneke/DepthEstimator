@@ -24,6 +24,7 @@ Vision Aid combines three key technologies:
 1. **Object Detection**: [YOLOv5](https://github.com/ultralytics/yolov5) identifies objects in the scene.
 2. **Depth Estimation**: [MiDaS](https://github.com/intel-isl/MiDaS) estimates the relative distances of those objects.
 3. **Language Generation**: OpenAI's GPT models produce a spatially aware, intuitive description of the scene, avoiding technical terms.
+4. **Text-to-Speech (TTS)**: Converts the generated description into audio, providing direct auditory feedback.
 
 ## Key Features
 
