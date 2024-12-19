@@ -52,7 +52,7 @@ The uploaded image is passed through YOLOv5, detecting objects and returning bou
 - YOLOv5 identifies objects like `person`, `car`, `bottle`, etc.
 - Draws bounding boxes and labels on the image.
 
-<img src="images/step2.jpeg" alt="Step 2 - Object Detection" width="400" />
+<img src="images/step2.jpeg" alt="Step 2 - Object Detection" width="500" />
 
 ### Step 3: Depth Estimation with MiDaS
 
@@ -62,12 +62,12 @@ The image is then sent to the MiDaS model to produce a depth map, where closer o
 - MiDaS estimates relative depth.
 - Depth map helps visualize which objects are nearer or farther.
 
-<img src="images/step3.jpeg" alt="Step 3 - Depth Map" width="400" />
+<img src="images/step3.jpeg" alt="Step 3 - Depth Map" width="500" />
 
 **Combining Object Detection + Depth**:  
 We combine the bounding boxes with depth information to understand the scene spatially.
   
-<img src="images/combined-image.jpeg" alt="Step 3 - Combined Visualization" width="400" />
+<img src="images/combined-image.jpeg" alt="Step 3 - Combined Visualization" width="500" />
 
 ### Scene Description via GPT
 
