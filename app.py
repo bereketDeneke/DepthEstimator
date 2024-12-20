@@ -7,6 +7,7 @@ import pyttsx3
 import openai
 import threading
 import asyncio
+import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -30,6 +31,10 @@ if "mode" not in st.session_state:
     st.session_state.mode = "Upload Video"  # default mode
 if "uploaded_image" not in st.session_state:
     st.session_state.uploaded_image = None
+if "models_loaded" not in st.session_state:
+    st.session_state.models_loaded = False
+if "cap" not in st.session_state:
+    st.session_state.cap = None
 
 # Global variables
 narration_lock = threading.Lock()
@@ -39,25 +44,36 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 if device == "cpu":
     st.warning("Running on CPU. Consider using a GPU for improved performance.")
 
-try:
-    # Load YOLOv5
-    yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
-    yolo_model.to(device)
+# Load models only once
+if not st.session_state.models_loaded:
+    try:
+        # Load YOLOv5
+        yolo_model = torch.hub.load('ultralytics/yolov5', 'yolov5s', pretrained=True)
+        yolo_model.to(device)
 
-    # Load MiDaS
-    midas_model = torch.hub.load('intel-isl/MiDaS', 'MiDaS')
-    midas_model.to(device)
-    midas_model.eval()
-    midas_transforms = torch.hub.load('intel-isl/MiDaS', 'transforms')
-    midas_transform = midas_transforms.default_transform
+        # Load MiDaS
+        midas_model = torch.hub.load('intel-isl/MiDaS', 'MiDaS')
+        midas_model.to(device)
+        midas_model.eval()
+        midas_transforms = torch.hub.load('intel-isl/MiDaS', 'transforms')
+        midas_transform = midas_transforms.default_transform
 
-except Exception as e:
-    st.error(f"Error loading models: {e}")
-    st.stop()
+        st.session_state.models_loaded = True
+        st.session_state.yolo_model = yolo_model
+        st.session_state.midas_model = midas_model
+        st.session_state.midas_transform = midas_transform
+    except Exception as e:
+        st.error(f"Error loading models: {e}")
+        st.stop()
+
+else:
+    yolo_model = st.session_state.yolo_model
+    midas_model = st.session_state.midas_model
+    midas_transform = st.session_state.midas_transform
 
 # Sidebar
 st.sidebar.title("Options")
-mode = st.sidebar.selectbox("Select Input Mode", ["Upload Video", "Upload Image", "Live Stream"])
+mode = st.sidebar.selectbox("Select Input Mode", ["Upload Image", "Upload Video", "Live Stream"])
 st.session_state.mode = mode
 yolo_conf_thres = st.sidebar.slider("YOLO Confidence Threshold", 0.0, 1.0, 0.25, 0.05)
 yolo_model.conf = yolo_conf_thres
@@ -91,6 +107,28 @@ def speak_text(text):
         st.session_state.narration_complete = True
     thread = threading.Thread(target=tts_thread)
     thread.start()
+
+# Braille mappings for lowercase letters and space using standard Braille Unicode
+# This is a basic Grade 1 mapping; refine or expand as needed.
+braille_map = {
+    'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑', 'f': '⠋', 'g': '⠛',
+    'h': '⠓', 'i': '⠊', 'j': '⠚', 'k': '⠅', 'l': '⠇', 'm': '⠍', 'n': '⠝',
+    'o': '⠕', 'p': '⠏', 'q': '⠟', 'r': '⠗', 's': '⠎', 't': '⠞', 'u': '⠥',
+    'v': '⠧', 'w': '⠺', 'x': '⠭', 'y': '⠽', 'z': '⠵', ' ': ' ',
+    '.': '⠲', ',': '⠂', '?': '⠦', '!': '⠖', '-': '⠤', ';': '⠆', ':': '⠒'
+}
+
+def text_to_braille(text):
+    # Convert to lowercase for simplicity
+    text = text.lower()
+    braille_text = ""
+    for char in text:
+        if char in braille_map:
+            braille_text += braille_map[char]
+        else:
+            # If char not mapped, you could omit or just add as is
+            braille_text += char
+    return braille_text
 
 async def describe_scene(objects):
     # Set API key
@@ -148,28 +186,31 @@ async def describe_scene(objects):
     relations_str = "\n".join(relations)
     depth_str = "\n".join(depth_ordering)
     prompt = f"""
-                You are a helpful assistant for visually impaired users. You are given a set of objects detected in a scene, along with their approximate positions and relative distances from the camera.
+        You are a helpful assistant for visually impaired users. You are given a set of objects detected in a scene, along with their approximate positions and relative distances from the camera.
 
-                Your task:
+        Your task:
 
-                Create a clear, concise, and auditory-friendly description of the scene that can help the user build a mental picture.
-                Use spatial terms like "to the left," "to the right," "in front of," "behind," "closer," and "farther" to describe the layout and relationships between objects.
-                Avoid technical terms like "x/y-coordinates" or "depth values" and focus on intuitive descriptions.
-                Information provided:
+        Create a clear, concise, and auditory-friendly description of the scene that can help the user build a mental picture.
+        Use spatial terms like "to the left," "to the right," "in front of," "behind," "closer," and "farther" to describe the layout and relationships between objects.
+        Avoid technical terms like "x/y-coordinates" or "depth values" and focus on intuitive descriptions.
 
-                Objects detected:
-                {object_list_str}
-                Positional relationships (spatial layout):
-                {relations_str}
-                Relative distances (closer/farther):
-                {depth_str}
-                Instructions for the description:
+        Information provided:
 
-                Clearly mention what objects are present in the scene.
-                Describe their spatial arrangement using terms that are natural and easy to visualize.
-                Highlight which objects are nearer or farther from the user's perspective.
-                Ensure the description is simple, conversational, and paints a vivid auditory image of the scene.
-            """
+        Objects detected:
+        {object_list_str}
+
+        Positional relationships (spatial layout):
+        {relations_str}
+
+        Relative distances (closer/farther):
+        {depth_str}
+
+        Instructions for the description:
+        Clearly mention what objects are present in the scene.
+        Describe their spatial arrangement using terms that are natural and easy to visualize.
+        Highlight which objects are nearer or farther from the user's perspective.
+        Ensure the description is simple, conversational, and paints a vivid auditory image of the scene.
+    """
     try:
         response = await openai.ChatCompletion.acreate(
             model="gpt-4",
@@ -218,6 +259,11 @@ def process_frame(frame):
 async def handle_scene_description(objects):
     description = await describe_scene(objects)
     st.write(description)
+    # Convert the description to Braille and display it
+    braille_output = text_to_braille(description)
+    st.write("**Braille Representation:**")
+    st.write(braille_output)
+
     if not st.session_state.stop_tts:
         speak_text(description)
 
@@ -225,25 +271,10 @@ st.title("Real-Time Object Detection, Relative Depth Estimation, and Scene Narra
 
 stframe_orig, stframe_annot = st.columns(2)
 
-def read_current_frame():
-    # This function opens the video at the current frame
-    if st.session_state.video_path is None:
-        return None
-    cap = cv2.VideoCapture(st.session_state.video_path)
-    if not cap.isOpened():
-        st.error("Unable to open video.")
-        return None
-    cap.set(cv2.CAP_PROP_POS_FRAMES, st.session_state.current_frame)
-    ret, frame = cap.read()
-    cap.release()
-    if not ret:
-        return None
-    return frame
-
 if st.session_state.mode == "Upload Video":
     uploaded_file = st.sidebar.file_uploader("Upload a video file", type=["mp4", "mov", "avi", "mkv"])
     if uploaded_file and st.session_state.video_path is None:
-        # Save once
+        # Save video file once
         st.session_state.video_path = "uploaded_video.mp4"
         with open(st.session_state.video_path, "wb") as f:
             f.write(uploaded_file.read())
@@ -252,6 +283,20 @@ if st.session_state.mode == "Upload Video":
         st.session_state.scene_described_once = False
         st.session_state.narration_complete = False
         st.session_state.re_describe = False
+
+    def read_current_frame():
+        if st.session_state.video_path is None:
+            return None
+        cap = cv2.VideoCapture(st.session_state.video_path)
+        if not cap.isOpened():
+            st.error("Unable to open video.")
+            return None
+        cap.set(cv2.CAP_PROP_POS_FRAMES, st.session_state.current_frame)
+        ret, frame = cap.read()
+        cap.release()
+        if not ret:
+            return None
+        return frame
 
     if st.session_state.video_path is not None:
         frame = read_current_frame()
@@ -262,20 +307,30 @@ if st.session_state.mode == "Upload Video":
             stframe_orig.image(orig_frame, channels="BGR", use_container_width=True, caption="Original Frame")
             stframe_annot.image(annotated_frame, channels="BGR", use_container_width=True, caption="Annotated Frame")
 
-            # Invoke scene description at the beginning (first frame) if not done yet
+            # Only describe scene once at the start of video
             if not st.session_state.scene_described_once:
                 asyncio.run(handle_scene_description(objects))
                 st.session_state.scene_described_once = True
 
-            # If narration is complete and we haven't re-described yet, describe current frame again
+            # If narration is done and we haven't re-described, do it once more
             if st.session_state.narration_complete and not st.session_state.re_describe:
                 st.session_state.narration_complete = False
                 st.session_state.re_describe = True
                 asyncio.run(handle_scene_description(objects))
 
-            # Move to next frame
-            st.session_state.current_frame += 1
-            st.experimental_rerun()
+            # Controls
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Next Frame"):
+                    st.session_state.current_frame += 1
+                    st.experimental_rerun()
+            with col2:
+                if st.button("Reset Video"):
+                    st.session_state.current_frame = 0
+                    st.experimental_rerun()
+
+        else:
+            st.write("End of video or no frame retrieved.")
 
 elif st.session_state.mode == "Upload Image":
     uploaded_img_file = st.sidebar.file_uploader("Upload an image file", type=["jpg", "jpeg", "png"])
@@ -300,7 +355,7 @@ elif st.session_state.mode == "Upload Image":
             asyncio.run(handle_scene_description(objects))
             st.session_state.scene_described_once = True
 
-        # If narration is complete and we haven't re-described yet (for demonstration)
+        # If narration is complete and we haven't re-described yet
         if st.session_state.narration_complete and not st.session_state.re_describe:
             st.session_state.narration_complete = False
             st.session_state.re_describe = True
@@ -308,30 +363,51 @@ elif st.session_state.mode == "Upload Image":
 
 elif st.session_state.mode == "Live Stream":
     st.write("Starting live stream from your webcam...")
+    start_button = st.sidebar.button("Start Live Stream")
+    stop_button = st.sidebar.button("Stop Live Stream")
 
-    if "cap" not in st.session_state:
+    if start_button and (st.session_state.cap is None or not st.session_state.cap.isOpened()):
         st.session_state.cap = cv2.VideoCapture(0)
 
     if st.session_state.cap is not None and st.session_state.cap.isOpened():
-        ret, frame = st.session_state.cap.read()
-        if ret:
-            orig_frame, annotated_frame, objects = process_frame(frame)
-            stframe_orig.image(orig_frame, channels="BGR", use_container_width=True, caption="Original Frame")
-            stframe_annot.image(annotated_frame, channels="BGR", use_container_width=True, caption="Annotated Frame")
+        # We will show frames in a loop until stop is pressed
+        placeholder_orig = stframe_orig.empty()
+        placeholder_annot = stframe_annot.empty()
 
-            # Describe scene on first frame
+        # Reset scene states if needed
+        if not st.session_state.scene_described_once:
+            # Wait until we get first frame to describe
+            pass
+
+        while True:
+            if stop_button:
+                st.session_state.cap.release()
+                st.session_state.cap = None
+                st.write("Live stream stopped.")
+                break
+
+            ret, frame = st.session_state.cap.read()
+            if not ret:
+                st.write("No frame captured. Check webcam.")
+                time.sleep(1)
+                continue
+
+            orig_frame, annotated_frame, objects = process_frame(frame)
+            placeholder_orig.image(orig_frame, channels="BGR", use_container_width=True, caption="Original Frame")
+            placeholder_annot.image(annotated_frame, channels="BGR", use_container_width=True, caption="Annotated Frame")
+
+            # Describe scene on first frame if not done
             if not st.session_state.scene_described_once:
                 asyncio.run(handle_scene_description(objects))
                 st.session_state.scene_described_once = True
 
-            # After narration completes, describe again on current frame
+            # After narration completes, describe again once
             if st.session_state.narration_complete and not st.session_state.re_describe:
                 st.session_state.narration_complete = False
                 st.session_state.re_describe = True
                 asyncio.run(handle_scene_description(objects))
 
-            st.experimental_rerun()
-        else:
-            st.write("No frame captured. Check webcam.")
+            # Small delay to limit frame rate
+            time.sleep(0.1)
     else:
-        st.write("Webcam not started or not available.")
+        st.write("Webcam not started or not available. Click 'Start Live Stream' to begin.")
