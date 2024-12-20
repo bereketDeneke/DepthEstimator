@@ -95,3 +95,8 @@ You can open `depth.ipynb` in [Jupyter Notebook](https://jupyter.org/) or [Jupyt
 **Install Dependencies**:
 ```bash
 pip install -r requirements.txt
+```
+
+```bash
+streamlit run app.py
+```
